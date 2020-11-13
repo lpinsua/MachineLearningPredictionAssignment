@@ -5,26 +5,89 @@ date: "11/13/2020"
 output: html_document
 ---
 
+## Introduction
+The objective of this project is to build a model to predict the quality of a dumbbell curl based on data measured by accelerometers.
+
+The data for the project came from the following source:  http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+The direct link to the taining data:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+Testing data:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+## Setup
+Loading all packages to be used and set a seed for reproducibility
+```{r packages}
+if(!require(caret)){ install.packages("caret",repos = "http://cran.us.r-project.org")}
+library(caret)
+if(!require(randomForest)){ install.packages("randomForest",repos = "http://cran.us.r-project.org")}
+library(randomForest)
+set.seed(8783)
 ```
 
-## Including Plots
+## Loading and processing data
+Load data
+```{r load and process data, cache=TRUE}
+## Load data and delete missing values.
+trainURL <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+testURL <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+train <- read.csv(url(trainURL), na.strings=c("NA","#DIV/0!",""))  
+test<- read.csv(url(testURL), na.strings=c("NA","#DIV/0!",""))
 
-You can also embed plots, for example:
+## Remove variables with no variability.
+train <-train[,colSums(is.na(train)) == 0]
+test <-test[,colSums(is.na(test)) == 0]
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+## Remove variables that are not predictors.
+train <- train[,-c(1:7)]
+test <- test[,-c(1:7)]
+
+## Convert independent variable to factor.
+train$classe <- as.factor(train$classe)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Cross validation split             
+Split the training data into training and testing subsets.
+```{r cross validation split}
+intTrain <- createDataPartition(y=train$classe,p=0.7, list=FALSE)
+valid.train <- train[intTrain,]
+valid.test<- train[-intTrain,]
+```
+
+## Prediction Models
+
+### Random Forest Model
+Build a random forest model and evaluate its accuracy.
+```{r random forest, cache=TRUE}
+forest <- randomForest(classe~., data=valid.train, method="class")
+pred.forest <- predict(forest, newdata=valid.test)
+confusionMatrix(pred.forest,valid.test$classe)
+```
+
+### Decision Tree Model
+Build a decision tree model and evaluate its accuracy.
+```{r decision tree}
+tree <- train(classe~., data=valid.train, method="rpart")
+pred.tree <- predict(tree, newdata=valid.test)
+confusionMatrix(pred.tree,valid.test$classe)
+```
+
+### Final Model
+Since the Random Forest method was the most accurate in the cross validation, we will use it to create the final model with all the training data.
+```{r final model, cache=TRUE}
+finalModel <- randomForest(classe~., data=train, method="class")
+finalPred <- predict(finalModel, newdata=test)
+
+```
+
+## Works Cited
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+
+Read more: http:/groupware.les.inf.puc-rio.br/har#ixzz4TjqlcsCi
