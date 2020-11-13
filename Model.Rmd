@@ -1,5 +1,5 @@
 ---
-title: "Model Creation and Testing"
+title: "Predicting the Quality of Bicep Curl Movements with Machine Learning"
 author: "Luis Pedro Insua"
 date: "11/13/2020"
 output: html_document
